@@ -1,0 +1,44 @@
+> sudo go run main.go
+[sudo] password for morgan: 
+2019/04/03 15:57:16 garlic connection created.
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x1, Timestamp:time.Time{wall:0x160829f6, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x77e3, ParentTgid:0x77e0, ChildPid:0x7826, ChildTgid:0x7820}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x2, Timestamp:time.Time{wall:0x16087409, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x7824, ParentTgid:0x7820, ChildPid:0x7827, ChildTgid:0x7827}}}
+2019/04/03 15:57:16 Found the launch of process we were expecting with PID: 30759
+ and Event: Exec
+2019/04/03 15:57:16 Found the launch of process we were expecting with PID: 30759
+ and Event: Exec
+Current PID: 30759
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x0, Timestamp:time.Time{wall:0x163f1700, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x7827, ParentTgid:0x7827, ChildPid:0x7828, ChildTgid:0x7828}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x0, Timestamp:time.Time{wall:0x164155be, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x7827, ParentTgid:0x7827, ChildPid:0x7829, ChildTgid:0x7829}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x0, Timestamp:time.Time{wall:0x16455ef0, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x7828, ProcessTgid:0x7828}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x0, Timestamp:time.Time{wall:0x169c307c, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x7829, ProcessTgid:0x7829}}}
+root     30759  0.0  0.0   7104  2756 pts/0    S+   15:57   0:00 bash ./first-launch.sh
+root     30761  0.0  0.0   6268  2272 pts/0    S+   15:57   0:00 grep 30759
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x0, Timestamp:time.Time{wall:0x16ec5096, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x7829, ProcessTgid:0x7829, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x1, Timestamp:time.Time{wall:0x16ecd184, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x7828, ProcessTgid:0x7828, ExitCode:0x0, ExitSignal:0x11}}}
+Launching secondary process
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x0, Timestamp:time.Time{wall:0x16f186a8, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x7827, ParentTgid:0x7827, ChildPid:0x782a, ChildTgid:0x782a}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x1, Timestamp:time.Time{wall:0x16f771c9, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x782a, ProcessTgid:0x782a}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x1, Timestamp:time.Time{wall:0x16fd9100, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x782a, ProcessTgid:0x782a}}}
+Current PID: 30762
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x1, Timestamp:time.Time{wall:0x1724daab, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x782a, ParentTgid:0x782a, ChildPid:0x782b, ChildTgid:0x782b}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x3, Timestamp:time.Time{wall:0x1726542b, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x77e3, ParentTgid:0x77e0, ChildPid:0x782c, ChildTgid:0x7820}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x0, Timestamp:time.Time{wall:0x17289cc0, ext:63689926654, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x782b, ProcessTgid:0x782b}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x0, Timestamp:time.Time{wall:0x17324a1b, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x782b, ProcessTgid:0x782b, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x1, Timestamp:time.Time{wall:0x173fd7d6, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x782a, ParentTgid:0x782a, ChildPid:0x782d, ChildTgid:0x782d}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x1, Timestamp:time.Time{wall:0x1744b6fb, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x782a, ParentTgid:0x782a, ChildPid:0x782e, ChildTgid:0x782e}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x3, Timestamp:time.Time{wall:0x174e567d, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x782d, ProcessTgid:0x782d}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exec", What:0x2, CPU:0x2, Timestamp:time.Time{wall:0x17548429, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exec{ProcessPid:0x782e, ProcessTgid:0x782e}}}
+root     30762  0.0  0.0   7236  3636 pts/0    S+   15:57   0:00 bash ./second-launch.sh
+root     30766  0.0  0.0   6136  2228 pts/0    S+   15:57   0:00 grep 30762
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x2, Timestamp:time.Time{wall:0x196c6a9f, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x782e, ProcessTgid:0x782e, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x3, Timestamp:time.Time{wall:0x196d5174, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x782d, ProcessTgid:0x782d, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x1, Timestamp:time.Time{wall:0x19784ed2, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x782a, ProcessTgid:0x782a, ExitCode:0x0, ExitSignal:0x11}}}
+2019/04/03 15:57:18 Found the exit of process we were expecting with PID: 30759
+[]garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x0, Timestamp:time.Time{wall:0x19845c18, ext:63689926656, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x7827, ProcessTgid:0x7827, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x3, Timestamp:time.Time{wall:0x3187fa34, ext:63689926663, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x144b, ParentTgid:0x144b, ChildPid:0x782f, ChildTgid:0x782f}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Exit", What:0x80000000, CPU:0x0, Timestamp:time.Time{wall:0x32738f9f, ext:63689926663, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Exit{ProcessPid:0x782f, ProcessTgid:0x782f, ExitCode:0x0, ExitSignal:0x11}}}
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Fork", What:0x1, CPU:0x2, Timestamp:time.Time{wall:0x3221fb, ext:63689926664, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Fork{ParentPid:0x1433, ParentTgid:0x1433, ChildPid:0x7830, ChildTgid:0x14a6}}}
+Length of data: 24, Index: 15
+did not find event in sentries: []garlic.ProcEvent{garlic.ProcEvent{WhatString:"Command", What:0x200, CPU:0x0, Timestamp:time.Time{wall:0x37d78d, ext:63689926664, loc:(*time.Location)(0x5bf080)}, EventData:garlic.Comm{ProcessPid:0x7830, ProcessTgid:0x14a6, Comm:"TaskSchedulerFo"}}}
+Duration -2562047h47m16.854775808s
