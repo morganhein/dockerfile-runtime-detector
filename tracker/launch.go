@@ -3,12 +3,9 @@ package tracker
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mitchellh/go-ps"
@@ -94,25 +91,26 @@ func startWatching(gC *garlic.CnConn, events chan []garlic.ProcEvent, cancel cha
 func eventLoop(eventsChan chan []garlic.ProcEvent, parentProcessChan chan *TrackedProcess, cancelChan chan bool) {
 	var err error
 	var finished bool
-	var parentProcess *TrackedProcess
+	parentProcesses := make([]*TrackedProcess, 0)
 	for {
 		select {
 		case <-cancelChan:
 			//TODO: print out the current results? this will be incomplete,
 			//and the printProcessTree expects an end time, so this is work to be done.
 			return
-		case parentProcess = <-parentProcessChan:
+		case parentProcess := <-parentProcessChan:
+			parentProcesses = append(parentProcesses, parentProcess)
 			//add this TrackedProcess to be watched by a sentry
 			log.Printf("Parent process with PID %v being watched for.\n", parentProcess.PID)
 			continue
 		case newEvents := <-eventsChan:
-			if parentProcess == nil {
+			if len(parentProcesses) == 0 {
 				//TODO: we don't have a parent process yet, so cache the event for now. This is an
 				//edge case that needs to be covered.
 				continue
 			}
 			//handle newEvents
-			finished, err = handleEvents(newEvents, parentProcess)
+			finished, err = handleEvents(newEvents, parentProcesses)
 			if err != nil {
 				//TODO: panics be bad
 				log.Panicf("Unable to handleEvents: %v\n", err)
@@ -124,33 +122,19 @@ func eventLoop(eventsChan chan []garlic.ProcEvent, parentProcessChan chan *Track
 	}
 }
 
-func handleEvents(data []garlic.ProcEvent, parent *TrackedProcess) (bool, error) {
+func handleEvents(data []garlic.ProcEvent, parents []*TrackedProcess) (bool, error) {
 	for _, d := range data {
 		printInfo(d)
 		// fmt.Printf("%#v\n", data)
 		// fmt.Println(fmt.Sprintf("New Data: %v, Type: %v", d.EventData.Pid(), d.WhatString))
 		//check if this is a fork
 		if t, ok := d.EventData.(garlic.Fork); ok {
-			parentPID := uint32(t.ParentPid)
-			if process := searchTrackedProcesses(parent, parentPID); process != nil {
-				// log.Printf("Found a fork of PID: %v; New PID: %v\n", parentPID, d.EventData.Pid())
-				tp := &TrackedProcess{
-					PID:   d.EventData.Pid(),
-					Start: time.Now(),
-				}
-				pidInfo, err := ps.FindProcess(int(d.EventData.Pid()))
-				if err != nil {
-					tp.Name = "unknown"
-				} else {
-					tp.Name = pidInfo.Executable()
-				}
-				process.Children = append(process.Children, tp)
-			}
+			handleFork(parents, t)
 			continue
 		}
 
 		//check if the pid of d is in our map
-		process := searchTrackedProcesses(parent, d.EventData.Pid())
+		process := searchTrackedProcesses(parents, d.EventData.Pid())
 		if process == nil {
 			//nope, exit early
 			continue
@@ -169,103 +153,52 @@ func handleEvents(data []garlic.ProcEvent, parent *TrackedProcess) (bool, error)
 		}
 	}
 
-	return checkIfComplete(parent), nil
+	return checkIfComplete(parents), nil
 }
 
-func printInfo(event garlic.ProcEvent) {
-	if event.WhatString == "Exit" {
-		return
-	}
-	cmdline := fmt.Sprintf("/proc/%v/cmdline", event.EventData.Pid())
-	args := ""
-	if Exists(cmdline) {
-		d, err := ioutil.ReadFile(cmdline)
-		if err == nil {
-			args = string(d)
+func handleFork(parents []*TrackedProcess, e garlic.Fork) {
+	name := getNameByPid(e.Pid())
+
+	//if this is a fork of containerd, begin watching it
+	if name != "containerd" {
+		tp := &TrackedProcess{
+			PID:   e.Pid(),
+			Start: time.Now(),
+			Name:  name,
+			//TODO: Args,
 		}
-	}
-	if t, ok := event.EventData.(garlic.Fork); ok {
-		fmt.Printf("Event: %s; PID: %v; ParentPID: %v; TGID: %v; Args: %s\n\n", event.WhatString, event.EventData.Pid(), uint32(t.ParentPid), t.Tgid(), args)
-		printInfoByPID("fork", t.ParentPid)
-		return
-	}
-	if t, ok := event.EventData.(garlic.Comm); ok {
-		fmt.Printf("Event: %s; PID: %v; Command: %v; Args: %s\n\n", event.WhatString, event.EventData.Pid(), t.Comm, args)
-		return
-	}
-	if t, ok := event.EventData.(garlic.Exec); ok {
-		fmt.Printf("Event: %s; PID: %v; TGID: %v; Args: %s\n\n", event.WhatString, event.EventData.Pid(), t.ProcessTgid, args)
+		parents = append(parents, tp)
 		return
 	}
 
-	fmt.Printf("Event: %s; PID: %v; Args: %s\n\n", event.WhatString, event.EventData.Pid(), args)
+	//otherwise check if this is a fork of a process we are already watching
+	parentPID := uint32(e.ParentPid)
+	if process := searchTrackedProcesses(parents, parentPID); process != nil {
+		// log.Printf("Found a fork of PID: %v; New PID: %v\n", parentPID, d.EventData.Pid())
+		tp := &TrackedProcess{
+			PID:   e.Pid(),
+			Start: time.Now(),
+			Name:  name,
+		}
+		process.Children = append(process.Children, tp)
+	}
 }
 
-func printInfoByPID(action string, pid uint32) {
-	if pid == uint32(1) {
-		return
-	}
-	statFile := fmt.Sprintf("/proc/%v/status", pid)
-	stat := ""
-	if Exists(statFile) {
-		s, err := ioutil.ReadFile(statFile)
-		if err == nil {
-			stat = string(s)
-		}
-		if strings.Contains(stat, "Tgid:") && strings.Contains(stat, "PPid:	1") {
-			//parse out the Tgid and get pid info by that pid
-			parts := strings.Split(stat, "\n")
-			for _, v := range parts {
-				if strings.Contains(v, "Tgid:") {
-					//split 'Tgid: int'
-					tgidparts := strings.Split(v, ":")
-					tgid := strings.TrimSpace(tgidparts[1])
-					fmt.Printf("FOUND A TGID %v\n\n\n\n", tgid)
-					if s, err := strconv.Atoi(tgid); err == nil {
-						if uint32(s) == pid {
-							return
-						}
-						printInfoByPID("TGIDSPAWN", uint32(s))
-					}
-				}
-			}
+//searchTrackedProcesses searches all of the process trees we know about. Currently I can't find a way to track
+//the containerd forks that eventually execute commands in the dockerfile from the `docker build` command.
+//Instead I just capture all containderd forks that lead to spawns, and they are each an individual tree that gets
+//searched for.
+func searchTrackedProcesses(processes []*TrackedProcess, pid uint32) *TrackedProcess {
+	for _, ps := range processes {
+		found := searchTrackedProcessesHelper(ps, pid)
+		if found != nil {
+			return found
 		}
 	}
-
-	tp := TrackedProcess{}
-
-	pidInfo, err := ps.FindProcess(int(pid))
-	if err != nil {
-		tp.Name = "unknown"
-	}
-	if pidInfo != nil {
-		tp.Name = pidInfo.Executable()
-	}
-
-	//check if pid cmdline info exists
-	cmdline := fmt.Sprintf("/proc/%v/cmdline", pid)
-	if Exists(cmdline) {
-		d, err := ioutil.ReadFile(cmdline)
-		if err == nil {
-			tp.Args = string(d)
-		}
-	}
-
-	fmt.Printf("PID: %v - Process %s %s with args %s; stats%s\n", pid, tp.Name, action, tp.Args, stat)
+	return nil
 }
 
-// Exists reports whether the named file or directory exists.
-//https://stackoverflow.com/a/12527546
-func Exists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
-
-func searchTrackedProcesses(process *TrackedProcess, pid uint32) *TrackedProcess {
+func searchTrackedProcessesHelper(process *TrackedProcess, pid uint32) *TrackedProcess {
 	//this is the process we are looking for
 	if process.PID == pid {
 		return process
@@ -275,7 +208,7 @@ func searchTrackedProcesses(process *TrackedProcess, pid uint32) *TrackedProcess
 		return nil
 	}
 	for _, v := range process.Children {
-		ret := searchTrackedProcesses(v, pid)
+		ret := searchTrackedProcessesHelper(v, pid)
 		if ret != nil {
 			return ret
 		}
@@ -283,19 +216,32 @@ func searchTrackedProcesses(process *TrackedProcess, pid uint32) *TrackedProcess
 	return nil
 }
 
-func checkIfComplete(process *TrackedProcess) bool {
+func checkIfComplete(processes []*TrackedProcess) bool {
+	if len(processes) == 0 {
+		return true
+	}
+	for _, ps := range processes {
+		finished := checkIfCompleteHelper(ps)
+		if !finished {
+			return false
+		}
+	}
+	return true
+}
+
+func checkIfCompleteHelper(process *TrackedProcess) bool {
 	if process == nil {
 		return true
 	}
 	if len(process.Children) > 0 {
 		for _, p := range process.Children {
-			finished := checkIfComplete(p)
+			finished := checkIfCompleteHelper(p)
 			if !finished {
 				return false
 			}
 		}
 	}
-	return process.Done
+	return true
 }
 
 func print(process *TrackedProcess) {
