@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/fearful-symmetry/garlic"
+	"github.com/morganhein/garlic"
 	"github.com/morganhein/yourbase-challenge/tracker"
 )
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/mitchellh/go-ps"
 
-	"github.com/fearful-symmetry/garlic"
+	"github.com/morganhein/garlic"
 )
 
 type TrackedProcess struct {

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fearful-symmetry/garlic"
 	"github.com/mitchellh/go-ps"
+	"github.com/morganhein/garlic"
 )
 
 func getNameByPid(pid uint32) string {
