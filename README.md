@@ -26,11 +26,10 @@ All of the above works in Arch Linux with kernel 4.20+
 
 ## Cons/Areas of Improvement
 
-Although I didn't test this, I think that if other containers are being built at the same time, this will pick up those commands, *even if they aren't part of the originally tracked build command*. I feel about 50/50 that this can be solved, however I just didn't have enough time to go down that rabbit hole and figure it out.
-
-Also, it requires the CONFIG_PROC_EVENTS kernel option to be enabled. This means it may not work in the Mac docker vm.
-
-Lastly, I don't watch the process tree for docker-in-docker commands, or really any commands that get spawned by the original "docker build" commands, however this definitely could be done fairly easily. 
+* Although I didn't test this, I think that if other containers are being built at the same time, this will pick up those commands, *even if they aren't part of the originally tracked build command*. I feel about 50/50 that this can be solved, however I just didn't have enough time to go down that rabbit hole and figure it out.
+* Also, it requires the CONFIG_PROC_EVENTS kernel option to be enabled. This means it may not work in the Mac docker vm.
+* It doesn't catch and track "&&" commands, although this could be done.
+* Lastly, I don't watch the process tree for docker-in-docker commands, or really any commands that get spawned by the original "docker build" commands, however this definitely could be done fairly easily. 
 
 ## Advantages
 
