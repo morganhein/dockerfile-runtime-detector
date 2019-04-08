@@ -220,6 +220,10 @@ func handleExec(parent *TrackedProcess, e garlic.Exec) {
 		// log.Println("Detected an execution that was already recorded, skipping.")
 		return
 	}
+	//Don't need to execs of runcinit
+	if exec.Args == "runcinit" {
+		return
+	}
 	tp := searchTrackedProcesses(parent, e.ProcessPid)
 	if tp == nil {
 		// fmt.Printf("Unable to find a tracked process chain for this exec. %s\n", exec.Args)
@@ -298,6 +302,7 @@ func searchTrackedProcesses(process *TrackedProcess, pid uint32) *TrackedProcess
 func print(process *TrackedProcess) {
 	log.Printf("==============Results============\n\n\n\n")
 	printProcessTree(process, "")
+	log.Printf("Full runtime: %v\n", process.End.Sub(process.Start))
 }
 
 //printProcessTree creates the `ProgName (pid) Total Time: <time> -> ProgName etc...` information
