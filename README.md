@@ -35,6 +35,11 @@ Also, it requires the CONFIG_PROC_EVENTS kernel option to be enabled. This means
 There is *very little* overhead to this approach, as the entire tracking process is completed by receiving events from the kernel, and the only polling done is triggered by events where new information is known to exist. 
 
 ## Sources
+
 * https://bewareofgeek.livejournal.com/2945.html
 * https://github.com/fearful-symmetry/garlic
 * https://medium.com/@mdlayher/linux-netlink-and-go-part-2-generic-netlink-833bce516400
+
+## Tests
+
+The tests are trash. I abandoned them after I realized the entire workflow had to be reworked. This entire codebase is rather hacky, so it needs to be refactored altogether, let alone making it testable. 
