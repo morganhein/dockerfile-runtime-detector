@@ -17,7 +17,6 @@ func main() {
 	}
 
 	log.Println("Garlic connection created.")
-	// tracker.Launch(&garConn, "./first-launch.sh", "")
 	// tracker.Launch(&garConn, "docker", "build", ".", "--no-cache")
 	tracker.Launch(&garConn, "docker", "build", "-f", "Dockerfile.small", ".", "--no-cache")
 }
