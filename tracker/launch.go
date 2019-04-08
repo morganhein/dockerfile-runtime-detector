@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -237,7 +236,7 @@ func handleExec(parent *TrackedProcess, e garlic.Exec) {
 	if tp.Exec == nil {
 		tp.Exec = make([]*Exec, 0)
 	}
-	fmt.Printf("Exec of %s(%v) detected and attaching to %s\n", exec.Args, exec.PID, tp.Name)
+	log.Printf("Exec of %s(%v) detected and attaching to %s\n", exec.Args, exec.PID, tp.Name)
 	tp.Exec = append(tp.Exec, exec)
 }
 
