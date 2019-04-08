@@ -30,6 +30,8 @@ Although I didn't test this, I think that if other containers are being built at
 
 Also, it requires the CONFIG_PROC_EVENTS kernel option to be enabled. This means it may not work in the Mac docker vm.
 
+Lastly, I don't watch the process tree for docker-in-docker commands, or really any commands that get spawned by the original "docker build" commands, however this definitely could be done fairly easily. 
+
 ## Advantages
 
 There is *very little* overhead to this approach, as the entire tracking process is completed by receiving events from the kernel, and the only polling done is triggered by events where new information is known to exist. 
