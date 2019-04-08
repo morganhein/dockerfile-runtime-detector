@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,19 @@ func getNameByPid(pid uint32) string {
 		return ""
 	}
 	return pidInfo.Executable()
+}
+
+func getArgsByPid(pid uint32) string {
+	cmdline := fmt.Sprintf("/proc/%v/cmdline", pid)
+	reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
+	if Exists(cmdline) {
+		d, err := ioutil.ReadFile(cmdline)
+		if err == nil {
+			filtered := reg.ReplaceAllString(string(d), "")
+			return filtered
+		}
+	}
+	return ""
 }
 
 func printInfo(event garlic.ProcEvent) {

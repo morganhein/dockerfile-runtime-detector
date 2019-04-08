@@ -15,12 +15,23 @@ import (
 
 type TrackedProcess struct {
 	Children []*TrackedProcess
+	Parent   *TrackedProcess
 	PID      uint32
 	Start    time.Time
 	End      time.Time
 	Done     bool
-	Name     string //TODO: I don't query for this information, but could be done
+	Name     string
 	Args     string
+	Exec     []*Exec
+}
+
+type Exec struct {
+	PID    uint32
+	Start  time.Time
+	End    time.Time
+	Done   bool
+	Args   string
+	Parent *TrackedProcess
 }
 
 //to do this appropriately, we need to:
@@ -42,7 +53,7 @@ func Launch(g *garlic.CnConn, name string, arg ...string) {
 
 	// launch the process
 	cmd := exec.CommandContext(ctx, name, arg...)
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = nil
 	cmd.Stderr = os.Stderr
 	// get the pid
 	err := cmd.Start()
@@ -52,6 +63,7 @@ func Launch(g *garlic.CnConn, name string, arg ...string) {
 	tp := &TrackedProcess{
 		Start: time.Now(),
 		PID:   uint32(cmd.Process.Pid),
+		Args:  getArgsByPid(uint32(cmd.Process.Pid)),
 	}
 	pidInfo, err := ps.FindProcess(cmd.Process.Pid)
 	if err != nil {
@@ -91,26 +103,25 @@ func startWatching(gC *garlic.CnConn, events chan []garlic.ProcEvent, cancel cha
 func eventLoop(eventsChan chan []garlic.ProcEvent, parentProcessChan chan *TrackedProcess, cancelChan chan bool) {
 	var err error
 	var finished bool
-	parentProcesses := make([]*TrackedProcess, 0)
+	var parentProcess *TrackedProcess
 	for {
 		select {
 		case <-cancelChan:
 			//TODO: print out the current results? this will be incomplete,
 			//and the printProcessTree expects an end time, so this is work to be done.
 			return
-		case parentProcess := <-parentProcessChan:
-			parentProcesses = append(parentProcesses, parentProcess)
+		case parentProcess = <-parentProcessChan:
 			//add this TrackedProcess to be watched by a sentry
-			log.Printf("Parent process with PID %v being watched for.\n", parentProcess.PID)
+			log.Printf("Watching process %s(%v) %s\n\n", parentProcess.Name, parentProcess.PID, parentProcess.Args)
 			continue
 		case newEvents := <-eventsChan:
-			if len(parentProcesses) == 0 {
+			if parentProcess == nil {
 				//TODO: we don't have a parent process yet, so cache the event for now. This is an
 				//edge case that needs to be covered.
 				continue
 			}
 			//handle newEvents
-			finished, err = handleEvents(newEvents, parentProcesses)
+			finished, err = handleEvents(newEvents, parentProcess)
 			if err != nil {
 				//TODO: panics be bad
 				log.Panicf("Unable to handleEvents: %v\n", err)
@@ -122,75 +133,139 @@ func eventLoop(eventsChan chan []garlic.ProcEvent, parentProcessChan chan *Track
 	}
 }
 
-func handleEvents(data []garlic.ProcEvent, parents []*TrackedProcess) (bool, error) {
+func handleEvents(data []garlic.ProcEvent, parent *TrackedProcess) (bool, error) {
 	for _, d := range data {
-		printInfo(d)
-		// fmt.Printf("%#v\n", data)
+		// printInfo(d)
+		// fmt.Printf("%#v Args: %s\n\n", data, getArgsByPid(d.EventData.Pid()))
 		// fmt.Println(fmt.Sprintf("New Data: %v, Type: %v", d.EventData.Pid(), d.WhatString))
+
 		//check if this is a fork
 		if t, ok := d.EventData.(garlic.Fork); ok {
-			handleFork(parents, t)
+			handleFork(parent, t)
+			continue
+		}
+
+		//check if this is an exec
+		if t, ok := d.EventData.(garlic.Exec); ok {
+			handleExec(parent, t)
+			continue
+		}
+
+		if t, ok := d.EventData.(garlic.Exit); ok {
+			handleExit(parent, t)
 			continue
 		}
 
 		//check if the pid of d is in our map
-		process := searchTrackedProcesses(parents, d.EventData.Pid())
+		process := searchTrackedProcesses(parent, d.EventData.Pid())
 		if process == nil {
 			//nope, exit early
 			continue
 		}
-		fmt.Printf("%#v\n", data)
-		if d.WhatString == "Exec" {
-			log.Printf("Found the launch of process we were expecting with PID: %v\n and Event: %v", d.EventData.Pid(), d.WhatString) //
-			continue
-		}
-		//if it is, then check for exitng
-		if d.WhatString == "Exit" {
-			// log.Printf("Found the exit of process we were execting with PID: %v\n", d.EventData.Pid())
-			// fmt.Printf("%#v\n", data)
-			process.End = time.Now()
-			process.Done = true
-		}
 	}
-
-	return checkIfComplete(parents), nil
+	//
+	return parent.Done == true, nil
 }
 
-func handleFork(parents []*TrackedProcess, e garlic.Fork) {
+func handleFork(parent *TrackedProcess, e garlic.Fork) {
+	parentName := getNameByPid(e.ParentPid)
 	name := getNameByPid(e.Pid())
-
-	//if this is a fork of containerd, begin watching it
-	if name != "containerd" {
+	//if this is a fork of containerd/dockerd, begin watching it
+	if parentName == "dockerd" || parentName == "containerd" {
 		tp := &TrackedProcess{
-			PID:   e.Pid(),
-			Start: time.Now(),
-			Name:  name,
-			//TODO: Args,
+			Parent: parent, //this isn't actually true, it's spawned by run-init
+			PID:    e.Pid(),
+			Start:  time.Now(),
+			Name:   getNameByPid(e.Pid()),
+			Args:   getArgsByPid(e.Pid()),
 		}
-		parents = append(parents, tp)
+		// fmt.Printf("Fork of `dockerd/containerd`(%v) %s detected\n", tp.PID, tp.Args)
+		parent.Children = append(parent.Children, tp)
 		return
 	}
 
+	//determine if this is a duplicate
+
 	//otherwise check if this is a fork of a process we are already watching
 	parentPID := uint32(e.ParentPid)
-	if process := searchTrackedProcesses(parents, parentPID); process != nil {
-		// log.Printf("Found a fork of PID: %v; New PID: %v\n", parentPID, d.EventData.Pid())
+	if process := searchTrackedProcesses(parent, parentPID); process != nil {
 		tp := &TrackedProcess{
 			PID:   e.Pid(),
 			Start: time.Now(),
 			Name:  name,
+			Args:  getArgsByPid(e.Pid()),
 		}
 		process.Children = append(process.Children, tp)
+		// if strings.Contains(tp.Name, "run") {
+		// 	fmt.Printf("Found a fork of PID: %v; New PID: %v With Args: %s\n", parentPID, process.PID, tp.Args)
+		// }
 	}
 }
 
-//searchTrackedProcesses searches all of the process trees we know about. Currently I can't find a way to track
-//the containerd forks that eventually execute commands in the dockerfile from the `docker build` command.
-//Instead I just capture all containderd forks that lead to spawns, and they are each an individual tree that gets
-//searched for.
-func searchTrackedProcesses(processes []*TrackedProcess, pid uint32) *TrackedProcess {
-	for _, ps := range processes {
-		found := searchTrackedProcessesHelper(ps, pid)
+func handleExec(parent *TrackedProcess, e garlic.Exec) {
+	exec := &Exec{
+		PID:   e.Pid(),
+		Args:  getArgsByPid(e.Pid()),
+		Start: time.Now(),
+		Done:  false,
+	}
+	// fmt.Printf("Exec of %s(%v) detected\n", exec.Args, exec.PID)
+	if len(parent.Children) == 0 {
+		// fmt.Println("No siblings detected, so not adding exec.")
+		return
+	}
+	previousExec := searchExecutions(parent, e.ProcessPid)
+	if previousExec != nil {
+		//already added this exec, don't do it again?
+		// log.Println("Detected an execution that was already recorded, skipping.")
+		return
+	}
+	tp := searchTrackedProcesses(parent, e.ProcessPid)
+	if tp == nil {
+		// fmt.Printf("Unable to find a tracked process chain for this exec. %s\n", exec.Args)
+		return
+	}
+	//detect if this was spawned by a process called runcinit
+	if tp.Args != "runcinit" {
+		return
+	}
+	exec.Parent = tp
+	if tp.Exec == nil {
+		tp.Exec = make([]*Exec, 0)
+	}
+	fmt.Printf("Exec of %s(%v) detected and attaching to %s\n", exec.Args, exec.PID, tp.Name)
+	tp.Exec = append(tp.Exec, exec)
+}
+
+func handleExit(parent *TrackedProcess, e garlic.Exit) {
+	tp := searchTrackedProcesses(parent, e.Pid())
+	te := searchExecutions(parent, e.Pid())
+	if tp == nil && te == nil {
+		return
+	}
+	if tp != nil {
+		//TODO: could print this information out as well, but it's mostly timers for docker libs
+		tp.End = time.Now()
+		tp.Done = true
+	}
+	if te != nil {
+		te.End = time.Now()
+		te.Done = true
+		log.Printf("EXIT: %v; Time: %v; Args: %s\n\n", e.Pid(), te.End.Sub(te.Start), te.Args)
+	}
+}
+
+func searchExecutions(process *TrackedProcess, pid uint32) *Exec {
+	for _, e := range process.Exec {
+		if e.PID == pid {
+			return e
+		}
+	}
+	if len(process.Children) == 0 {
+		return nil
+	}
+	for _, c := range process.Children {
+		found := searchExecutions(c, pid)
 		if found != nil {
 			return found
 		}
@@ -198,7 +273,11 @@ func searchTrackedProcesses(processes []*TrackedProcess, pid uint32) *TrackedPro
 	return nil
 }
 
-func searchTrackedProcessesHelper(process *TrackedProcess, pid uint32) *TrackedProcess {
+//searchTrackedProcesses searches all of the process trees we know about. Currently I can't find a way to track
+//the containerd forks that eventually execute commands in the dockerfile from the `docker build` command.
+//Instead I just capture all containderd forks that lead to spawns, and they are each an individual tree that gets
+//searched for.
+func searchTrackedProcesses(process *TrackedProcess, pid uint32) *TrackedProcess {
 	//this is the process we are looking for
 	if process.PID == pid {
 		return process
@@ -208,7 +287,7 @@ func searchTrackedProcessesHelper(process *TrackedProcess, pid uint32) *TrackedP
 		return nil
 	}
 	for _, v := range process.Children {
-		ret := searchTrackedProcessesHelper(v, pid)
+		ret := searchTrackedProcesses(v, pid)
 		if ret != nil {
 			return ret
 		}
@@ -216,51 +295,20 @@ func searchTrackedProcessesHelper(process *TrackedProcess, pid uint32) *TrackedP
 	return nil
 }
 
-func checkIfComplete(processes []*TrackedProcess) bool {
-	if len(processes) == 0 {
-		return true
-	}
-	for _, ps := range processes {
-		finished := checkIfCompleteHelper(ps)
-		if !finished {
-			return false
-		}
-	}
-	return true
-}
-
-func checkIfCompleteHelper(process *TrackedProcess) bool {
-	if process == nil {
-		return true
-	}
-	if len(process.Children) > 0 {
-		for _, p := range process.Children {
-			finished := checkIfCompleteHelper(p)
-			if !finished {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func print(process *TrackedProcess) {
-	fmt.Println(printProcessTree(process, "", ""))
+	log.Printf("==============Results============\n\n\n\n")
+	printProcessTree(process, "")
 }
 
-func printProcessTree(process *TrackedProcess, current, output string) string {
+//printProcessTree creates the `ProgName (pid) Total Time: <time> -> ProgName etc...` information
+func printProcessTree(process *TrackedProcess, output string) {
 	if process == nil {
-		return ""
+		return
 	}
-	if len(current) == 0 {
-		current = fmt.Sprintf("%s (%v)", process.Name, process.PID)
-		output = fmt.Sprintf("%s; Total Time: %v\n", current, process.End.Sub(process.Start))
-	} else {
-		current = fmt.Sprintf("%s->%s (%v)", current, process.Name, process.PID)
-		output = fmt.Sprintf("%s; Total Time: %v\n", current, process.End.Sub(process.Start))
+	for _, e := range process.Exec {
+		log.Printf("%v -> Exec (%v); Total Time: %v\n", e.PID, e.Args, e.End.Sub(e.Start))
 	}
-	for _, child := range process.Children {
-		output += printProcessTree(child, current, output)
+	for _, p := range process.Children {
+		printProcessTree(p, output)
 	}
-	return output
 }
