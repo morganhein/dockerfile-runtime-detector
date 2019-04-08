@@ -10,6 +10,11 @@ Instead, I did something very hacky. It works, and I know there's room for impro
 
 There is lots of other tracking being done as well, so this could also potentially spit out the timings for all the processes forked by the initial build process. However most of this data is how long docker itself takes to perform certain actions preparing an environment for an actual Dockerfile command, and not the command itself.
 
+## Running
+Just `sudo go run main.go`.
+
+You can toggle the commented out runlines in main.go to change from the small dockerfile to the one you provided.
+
 ## Dependendencies/Environment
 
 Hey, you didn't give me any constraints, so here's what is required for this to work:
